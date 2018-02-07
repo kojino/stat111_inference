@@ -1,0 +1,141 @@
+---
+title: "Stat 111 Homework 2"
+author: "Kojin Oshiba"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+# 1. Sampling from major league baseball player data
+
+## (a) population mean, std dev
+
+```{r}
+df         <- read.csv(file="baseball.csv", header=TRUE, sep=",")
+K          <- nrow(df)
+pop.mean   <- sum(df$Salary) / K
+pop.stddev <- sqrt(sum((df$Salary-pop.mean)**2) / K)
+cat("population mean:", pop.mean, '\n')
+cat("population standard deviation:", pop.stddev)
+```
+
+## (b) random sample
+The population $(y_1,...,y_K)$ is fixed. The random sample $Y^* = (Y_1,...,Y_5)'$ is random. 
+
+## (c) std dev across sample averages
+```{r}
+R = 100
+calc_sample_avgs <- function(size) {
+    replicate(R, {
+                     sample.salaries <- sample(df$Salary,size=size,replace=T)
+                     mean(sample.salaries)
+                   }) 
+}
+
+cat("std dev across sample averages for n = 5:",sd(calc_sample_avgs(5)),'\n')
+cat("std dev across sample averages for n = 20:",sd(calc_sample_avgs(20)))
+```
+The sample averages with $n=20$ are better than those based on $n=5$. This is because, by the law of large numbers, the standard deviation of a sample average as well as the stndard deviation across the 100 sample averages decrease. Hence, the sample averages with $n=20$ are more likely to be a better proxy for $\mu$.
+
+## (d)
+
+### i.
+
+```{r}
+calc_sample_stddev_of_sample_avg <- function(size) {
+  sample_avgs <- calc_sample_avgs(size)
+  sqrt(sum((sample_avgs-mean(sample_avgs)) ** 2) / (R-1) )
+}
+cat("a sample standard deviation of a sample average using the 100 sample averages with sample size...",'\n')
+cat("n=5: ", calc_sample_stddev_of_sample_avg(5),'\n')
+cat("n=20:", calc_sample_stddev_of_sample_avg(20),'\n')
+cat("n=80:", calc_sample_stddev_of_sample_avg(80))
+```
+
+### ii.
+salaries
+
+### iii.
+sample mean salary
+
+### iv.
+The standard deviation of $\bar{Y}^*$ is an unbiased estimate of $\sigma$.
+
+# 2. Bootstraping from a major league baseball player sample
+
+## (a)
+```{r}
+n = 20
+Y.star = sample(df$Salary,size=n,replace=T)
+sample.sigma.sq <- sum((Y.star-mean(Y.star)) ** 2) / (n - 1)
+cat("std dev of the sample mean (formulaic):",sqrt(sample.sigma.sq / n))
+```
+## (b)
+```{r}
+R = 5000
+calc_bootsrap_stddev <- function (sample) {
+  bootstrap <- sample(Y.star,size=n,replace=T)
+  bootstrap.stddev <- sqrt(sum((bootstrap-mean(bootstrap)) ** 2) / (n - 1))
+  bootstrap.stddev
+}
+
+bootsrap.stddevs <- replicate(R, calc_bootsrap_stddev(20)) 
+cat("variance of the sample mean (bootstrap):",mean(bootsrap.stddevs))
+```
+
+## (c)
+```{r}
+bootsrap.stddevs <- replicate(R, calc_bootsrap_stddev(80)) 
+cat("variance of the sample mean (bootstrap):",mean(bootsrap.stddevs))
+```
+
+# 3. Binomial sampling
+## (a)
+$$F_Y(y) = P(Y\leq y) = \sum_{i=0}^{\left\lfloor y \right\rfloor}{7 \choose y} 0.1^i 0.9^{7-i}$$
+
+## (b)
+
+\begin{align*}
+Var(\hat{F}_n(y)) &= Var(\frac{1}{n}\sum_{i=1}^n Var(\textbf{1}_{Y_i \leq y})) &\\
+&= \frac{1}{n^2} \sum_{i=1}^nVar(\textbf{1}_{Y_i \leq y}) \ (\because \text{$Y_i$'s are sampled iid}) &\\
+&= \frac{F_Y(y)(1-F_Y(y))}{n} 
+\end{align*}
+
+## (c)
+
+```{r}
+n    <- 7
+size <- 40
+prob <- 0.1
+samples <- rbinom(n, size, prob)
+```
+
+### i.
+```{r}
+plot(ecdf(samples))
+```
+### ii.
+It's pretty similar.
+
+## (d)
+### i.
+```{r}
+ecdf.2s <- replicate(100, {
+  samples <- rbinom(n, 40, prob)
+  ecdf(samples)(2)
+})
+sd(ecdf.2s)
+```
+### ii.
+```{r}
+cdf.2 <- dbinom(0, size=size, prob=prob) + 
++ dbinom(1, size=size, prob=prob) + 
++ dbinom(2, size=size, prob=prob)
+cdf.2
+sqrt(cdf.2 * (1 - cdf.2) / 40)
+```
+
+## (e)
+
+$Var(\hat{F}_n(2))$ is the variance across the empirical cumulative distribution function evaluated at 2. $S^2_{\hat{F}_n(2)}$ is the sample variance of the empirical cumulative distribution function evaluated at 2
+
