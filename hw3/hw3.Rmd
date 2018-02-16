@@ -1,0 +1,194 @@
+---
+title: "Stat 111 Homework 3"
+author: "Kojin Oshiba"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+# 1. Randomized Control Trials
+
+## (a) Yi(1)
+
+So as not to clutter the document, I am only showing the first 10 rows of the treatment group.
+
+```{r}
+df <- read.csv(file="RCT.csv", header=TRUE, sep=",")
+treatment <- df[df$group == 1,]
+treatment[1:10,]
+```
+## (b) Proxy for p
+A good proxy for $p$ can be the fraction of people in the experiment who were assgined to the treatment group.
+
+```{r}
+n = nrow(df)
+cat('proxy for p:', nrow(df[df$group == 1,]) / n)
+```
+
+## (c) Estimate the average causal treatment effect
+
+```{r}
+p = 1/2
+cat('estimate of the average causal treatment effect',1/n*p * sum(df[df$group == 1,]$pf5) - 1/n*(1-p) * sum(df[df$group == 0,]$pf5))
+```
+
+# 2. Joint PDF/PMF
+## (a)
+\begin{align*}
+f_{Y_1,...,Y_n}(y_1,...,y_n) &= f_{Y_1}(y_1) ... f_{Y_n}(y_n) &\\
+&= \prod_{i=1}^n (1-p)^{y_i-1}p &\\
+&= (1-p)^{\sum_{i=1}^n y_i - n}p^n
+\end{align*}
+
+## (b)
+\begin{align*}
+f_{Y_1,...,Y_n}(y_1,...,y_n) &= f_{Y_1}(y_1) ... f_{Y_n}(y_n) &\\
+&= \prod_{i=1}^n \lambda e^{-\lambda y_i} &\\
+&= \lambda^n e^{-\lambda \sum_{i=1}^n y_i}
+\end{align*}
+
+# 3. Linear Regression Model
+## (a)
+\begin{align*}
+E(\hat{\theta_1})&=E(\frac{\sum_{i=1}^n Y_i}{\sum_{i=1}^n x_i}) &\\
+&= \frac{1}{\sum_{i=1}^n x_i} \sum_{i=1}^n E(Y_i) &\\
+&= \frac{\sum_{i=1}^n \theta x_i}{\sum_{i=1}^n x_i} &\\
+&= \theta
+\end{align*}
+
+\begin{align*}
+E(\hat{\theta_2}) &= E(\frac{1}{n}\sum_{i=1}^n \frac{Y_i}{x_i}) &\\
+&= \frac{1}{n}\sum_{i=1}^n \frac{1}{x_i} E(Y_i) &\\
+&= \frac{1}{n}\sum_{i=1}^n \frac{\theta x_i}{x_i} &\\
+&= \theta
+\end{align*}
+
+
+## (b)
+\begin{align*}
+mse(\theta,\hat{\theta}_1) &= Var(\hat{\theta}_1) + bias(\theta,\hat{\theta}_1)^2 &\\
+&= Var(\hat{\theta}_1) &\\
+&= Var(\frac{\sum_{i=1}^n Y_i}{\sum_{i=1}^n x_i}) &\\
+&= \frac{1}{(\sum_{i=1}^n x_i)^2} \sum_{i=1}^n Var(Y_i) &\\
+&= \frac{n\sigma^2}{(\sum_{i=1}^n x_i)^2}
+\end{align*}
+
+\begin{align*}
+mse(\theta,\hat{\theta}_2) &= Var(\hat{\theta}_2) + bias(\theta,\hat{\theta}_2)^2 &\\
+&= Var(\hat{\theta}_2) &\\
+&= Var(\frac{1}{n}\sum_{i=1}^n \frac{Y_i}{x_i}) &\\
+&= \frac{1}{n^2} \sum_{i=1}^n \frac{1}{x_i^2} Var(Y_i) &\\
+&= \frac{1}{n^2} \sum_{i=1}^n \frac{1}{x_i^2} \sigma^2 &\\
+&= \frac{\sigma^2}{n^2 \sum_{i=1}^n x_i^2}
+\end{align*}
+
+## (c)
+From lecture note (3.15),
+
+\begin{align*}
+mse(\theta,\hat{\theta}) &= Var(\hat{\theta}) + bias(\theta,\hat{\theta})^2 &\\
+&= Var(\hat{\theta}) &\\
+&= \frac{\sigma^2}{\sum_{i=1}^n x_i^2} &\\
+\end{align*}
+
+Now, since 
+\begin{align*}
+mse(\theta,\hat{\theta}) &= \frac{\sigma^2}{\sum_{i=1}^n x_i^2} &\\
+&= \frac{n}{\sum_{i=1}^n x_i^2}\frac{\sigma^2}{n} &\\
+mse(\theta,\hat{\theta}_1) &= \frac{n\sigma^2}{(\sum_{i=1}^n x_i)^2} &\\
+&= (\frac{n}{\sum_{i=1}^n x_i)})^2 \frac{\sigma^2}{n} &\\
+mse(\theta,\hat{\theta}_2) &= \frac{\sigma^2}{n^2 \sum_{i=1}^n x_i^2} &\\
+&= \frac{1}{n\sum_{i=1}^n x_i^2}\frac{\sigma^2}{n}
+\end{align*}
+we can compare the part that doesn't involve $\frac{\sigma^2}{n}$.
+
+Recall Cauchy-Schwartz inequality:
+$$(\sum_{i=1}^n x_ib_i) \leq (\sum_{i=1}^n x_i^2)(\sum_{i=1}^n b_i^2)$$
+Set $b_i=1$. Then we have
+$$\frac{n}{\sum_{i=1}^n x_i^2} \leq (\frac{n}{\sum_{i=1}^n x_i)})^2$$
+Hence, 
+$$mse(\theta,\hat{\theta}) \leq mse(\theta,\hat{\theta}_1)$$
+Set $b_i = \frac{1}{a_i}$. Then we have
+$$n^2 \leq (\sum_{i=1}^n x_i^2)(\frac{1}{\sum_{i=1}^n x_i^2})$$
+Hence, 
+$$mse(\theta,\hat{\theta}) \leq mse(\theta,\hat{\theta}_2)$$
+Thus, we proved that $\hat{\theta}$ has the lowest mse.
+
+# 4. Auto MPG 
+
+## a. Estimate $\theta$
+```{r}
+df <- read.table(paste0("https://archive.ics.uci.edu/ml",
+                        "/machine-learning-databases/auto-mpg/auto-mpg.data"))
+colnames <- c('mpg','cylinders','displacement','horsepower',
+              'weight','acceleration','model year','origin','car name')
+colnames(df) <- colnames
+
+Y <- df$mpg
+X <- df$weight
+n <- nrow(df)
+
+calc_thetahat <- function (X,Y) {
+  sum(Y * X)/sum(X**2)
+}
+
+calc_thetahat1 <- function (X,Y) {
+  sum(Y)/sum(X)
+}
+
+calc_thetahat2 <- function (X,Y) {
+  1/n * sum(Y / X)
+}
+
+thetahat  <- calc_thetahat(X,Y)
+thetahat1 <- calc_thetahat1(X,Y)
+thetahat2 <- calc_thetahat2(X,Y)
+
+cat("Theta Hat:  ", thetahat, '\n')
+cat("Theta Hat 1:", thetahat1, '\n')
+cat("Theta Hat 2:", thetahat2)
+
+```
+
+```{r}
+pop <- data.frame(X,Y)
+R <- 1000
+
+thetahats <- replicate(R, {
+                            sample <- pop[sample(nrow(pop), n, replace=TRUE), ]
+                            calc_thetahat(sample$X,sample$Y)
+                          }) 
+thetahat1s <- replicate(R, {
+                            sample <- pop[sample(nrow(pop), n, replace=TRUE), ]
+                            calc_thetahat1(sample$X,sample$Y)
+                          }) 
+thetahat2s <- replicate(R, {
+                            sample <- pop[sample(nrow(pop), n, replace=TRUE), ]
+                            calc_thetahat2(sample$X,sample$Y)
+                          }) 
+
+cat("Variance of Theta Hat:  ", sd(thetahats), '\n')
+cat("Variance of Theta Hat 1:", sd(thetahat1s), '\n')
+cat("Variance of Theta Hat 2:", sd(thetahat2s))
+```
+We observe that the variance of $\hat{theta}$ is the smallest, which is consistent with the result from the previous problem.
+
+# 5. Unbiased Estimates
+## (a)
+\begin{align*}
+E(e^{-3X}) - e^{-3\lambda} &= M_X(-3) - e^{-3\lambda} &\\
+&= e^{\lambda(e^{-3}-1)}- e^{-3\lambda}
+\end{align*}
+Hencem it is biased.
+
+## (b)
+\begin{align*}
+E((-2)^X) - e^{-3\lambda} &= \sum_{x=0}^{\infty}(-2)^x \frac{\lambda^x e^{-\lambda}}{x!}  - e^{-3\lambda} &\\
+&= e^{-\lambda} \sum_{x=0}^{\infty}\frac{(-2\lambda)^x }{x!}  - e^{-3\lambda} &\\
+&= e^{-\lambda} e^{-2\lambda}  - e^{-3\lambda} \ (\because \text{Maclaurin series of $e^{-2\lambda}$})&\\ 
+&= 0
+\end{align*}
+Hence it is biased.
+
+## (c)
+$\theta$ is always positive. On the other hand, $g(X)$ is negative half of the time. Hence, it is silly that we are using an estimator whose value is nonsensical for estimating the estimand half of the time. A better estimator would be $h(X) = max(0,g(X))$ since $h(X)$ is always non negative.

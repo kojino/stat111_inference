@@ -11,16 +11,20 @@ output:
 ## (a) population mean, std dev
 
 ```{r}
+calc_pop_sd <- function (vec) {
+  sqrt(sum((vec-mean(vec))**2) / length(vec))
+}
+
 df         <- read.csv(file="baseball.csv", header=TRUE, sep=",")
 K          <- nrow(df)
-pop.mean   <- sum(df$Salary) / K
-pop.stddev <- sqrt(sum((df$Salary-pop.mean)**2) / K)
+pop.mean   <- mean(df$Salary)
+pop.stddev <- calc_pop_sd(df$Salary)
 cat("population mean:", pop.mean, '\n')
 cat("population standard deviation:", pop.stddev)
 ```
 
 ## (b) random sample
-The population $(y_1,...,y_K)$ is fixed. The random sample $Y^* = (Y_1,...,Y_5)'$ is random. 
+The population $(y_1,...,y_K)$ is fixed. The sample $Y^* = (Y_1,...,Y_5)'$ is random. 
 
 ## (c) std dev across sample averages
 ```{r}
@@ -46,11 +50,15 @@ calc_sample_stddev_of_sample_avg <- function(size) {
   sample_avgs <- calc_sample_avgs(size)
   sqrt(sum((sample_avgs-mean(sample_avgs)) ** 2) / (R-1) )
 }
-cat("a sample standard deviation of a sample average using the 100 sample averages with sample size...",'\n')
+cat("a sample standard deviation of a sample average using",'\n',
+    "100 sample averages with sample size of each...",'\n')
 cat("n=5: ", calc_sample_stddev_of_sample_avg(5),'\n')
 cat("n=20:", calc_sample_stddev_of_sample_avg(20),'\n')
 cat("n=80:", calc_sample_stddev_of_sample_avg(80))
 ```
+The term "this" was unclear whether it is "a proxy for the standard deviation of a sample average" or "the standard deviation of a sample average". From asking a TF, I assume that it is the latter. The latter is the square root of $Var(\bar{Y}^*)$. The relationship between this and $\sigma$ is, from the lecture note,
+
+$$Var(\bar{Y}^*) = \frac{1}{n}\sigma^2$$
 
 ### ii.
 salaries
@@ -59,7 +67,9 @@ salaries
 sample mean salary
 
 ### iv.
-The standard deviation of $\bar{Y}^*$ is an unbiased estimate of $\sigma$.
+From the lecture note,
+$$Var(\bar{Y}^*) = \frac{1}{n}\sigma^2$$
+This is essentially the same answer as in i., but a TF said it's ok...
 
 # 2. Bootstraping from a major league baseball player sample
 
@@ -67,27 +77,37 @@ The standard deviation of $\bar{Y}^*$ is an unbiased estimate of $\sigma$.
 ```{r}
 n = 20
 Y.star = sample(df$Salary,size=n,replace=T)
-sample.sigma.sq <- sum((Y.star-mean(Y.star)) ** 2) / (n - 1)
-cat("std dev of the sample mean (formulaic):",sqrt(sample.sigma.sq / n))
+sample.sigma <- sd(Y.star) 
+cat("std dev of the sample mean (formulaic):",sample.sigma / sqrt(n))
 ```
+$\sigma$ should be approximated using the sample standard deviation for the 20 samples from the population. Then, we plug that value in to the given formula in place of $\sigma$.
+
+
 ## (b)
 ```{r}
 R = 5000
 calc_bootsrap_stddev <- function (sample) {
   bootstrap <- sample(Y.star,size=n,replace=T)
-  bootstrap.stddev <- sqrt(sum((bootstrap-mean(bootstrap)) ** 2) / (n - 1))
-  bootstrap.stddev
+  mean(bootstrap)
 }
 
-bootsrap.stddevs <- replicate(R, calc_bootsrap_stddev(20)) 
-cat("variance of the sample mean (bootstrap):",mean(bootsrap.stddevs))
+bootsrap.means <- replicate(R, calc_bootsrap_stddev(20)) 
+cat("std dev of the sample mean (bootstrap):",sd(bootsrap.means))
 ```
+
 
 ## (c)
 ```{r}
-bootsrap.stddevs <- replicate(R, calc_bootsrap_stddev(80)) 
-cat("variance of the sample mean (bootstrap):",mean(bootsrap.stddevs))
+n = 80
+Y.star = sample(df$Salary,size=n,replace=T)
+sample.sigma <- sd(Y.star) 
+cat("std dev of the sample mean (formulaic):",sample.sigma / sqrt(n),'\n')
+
+bootsrap.means <- replicate(R, calc_bootsrap_stddev(20)) 
+cat("variance of the sample mean (bootstrap):",sd(bootsrap.means))
 ```
+The result from (a) and (b) are fairly similar.
+The above result improves when $n=80$, as shown.
 
 # 3. Binomial sampling
 ## (a)
@@ -104,38 +124,94 @@ Var(\hat{F}_n(y)) &= Var(\frac{1}{n}\sum_{i=1}^n Var(\textbf{1}_{Y_i \leq y})) &
 ## (c)
 
 ```{r}
-n    <- 7
-size <- 40
+num.trails <- 7
+n <- 40
 prob <- 0.1
-samples <- rbinom(n, size, prob)
+samples <- rbinom(n, num.trails, prob)
 ```
+
 
 ### i.
 ```{r}
 plot(ecdf(samples))
 ```
+
 ### ii.
 It's pretty similar.
 
 ## (d)
 ### i.
 ```{r}
-ecdf.2s <- replicate(100, {
-  samples <- rbinom(n, 40, prob)
+ecdf.2s <- replicate(R, {
+  samples <- rbinom(n, num.trails, prob)
   ecdf(samples)(2)
 })
-sd(ecdf.2s)
+cat("standard deviation of Fˆn(2)",sd(ecdf.2s))
 ```
 ### ii.
 ```{r}
-cdf.2 <- dbinom(0, size=size, prob=prob) + 
-+ dbinom(1, size=size, prob=prob) + 
-+ dbinom(2, size=size, prob=prob)
-cdf.2
-sqrt(cdf.2 * (1 - cdf.2) / 40)
+cdf.2 <- dbinom(0, num.trails, prob) + 
++ dbinom(1, num.trails, prob) + 
++ dbinom(2, num.trails, prob)
+
+cat("standard deviation of sqrt of Var(Fˆn(2))",sqrt(cdf.2 * (1 - cdf.2) / n))
 ```
+
 
 ## (e)
 
-$Var(\hat{F}_n(2))$ is the variance across the empirical cumulative distribution function evaluated at 2. $S^2_{\hat{F}_n(2)}$ is the sample variance of the empirical cumulative distribution function evaluated at 2
+$Var(\hat{F}_n(2))$ is the variance across the empirical cumulative distribution function evaluated at 2. $S^2_{\hat{F}_n(2)}$ is the sample variance of the empirical cumulative distribution function evaluated at 2. Basically, the latter is the sample estimate of the former.
 
+# 4. Quantiles
+
+## $n=4$ Case
+```{r}
+plot(ecdf(c(1,2,3,4)))
+```
+
+For $p=0$,
+$Q_4(p) = min\{Y_1,Y_2,Y_3,Y_4\} = Y_{(1)} = 1$ by definition.
+$Y(\lceil 4p \rceil)=Y_{(0)}$, which does not exist. So the proposition doesn't hold for $p=0$. But it will hold for cases when $p \neq 0$, as shown below.
+
+For $0 < p \leq 0.25$,
+
+$Q_4(p) = 1$. On the other hand, $Y(\lceil 4p \rceil)=Y_{(1)} = 1$
+
+For $0.25 < p \leq 0.5$,
+
+$Q_4(p) = 2$. On the other hand, $Y(\lceil 4p \rceil)=Y_{(2)} = 2$
+
+For $0.5 < p \leq 0.75$,
+
+$Q_4(p) = 3$. On the other hand, $Y(\lceil 4p \rceil)=Y_{(3)} = 3$
+
+For $0.75 < p \leq 1$,
+
+$Q_4(p) = 4$. On the other hand, $Y(\lceil 4p \rceil)=Y_{(4)} = 4$
+
+## General Case
+Assume the samples are increasingly ordered. For any $p \in [0,1]$, if $np$ is not an integer, $\exists j \in {1,...,n}$ such that $\frac{j-1}{n} < p < \frac{j}{n}$.
+Hence, $Q_n(p)=Y_{(j)}=Y_{\lceil np \rceil}$.
+
+if $np$ is an integer, $p=\frac{j}{n}$.
+Hence, $Q_n(p)=inf\{y\in \mathbb{R}: \frac{j}{n} \leq \hat{F}_n(y)\}=Y(j)=Y(np)=Y_{\lceil np \rceil}$.
+
+We have $Q_n(p)=Y_{\lceil np \rceil}$ in both cases.
+
+# 5. Delta Method
+
+## (i)
+Let $g(x) = logx$. Since $g$ is continuously differentiable for $x>0$, from delta method,
+$$\sqrt{n}(g(\bar{Y})-g(\mu)) \rightarrow N(0,\mu^2 g'(\mu)^2)$$
+Hence, 
+$$\sqrt{n}(log\bar{Y}-log\mu) \rightarrow N(0,1)$$ 
+in distribution.
+
+## (ii)
+Similarly to (i), let $g(x) = \sqrt{x}$. Since $g$ is continuously differentiable for $x>0$. Then,
+$$\sqrt{n}(\sqrt{\bar{Y}}-\sqrt{\mu}) \rightarrow N(0,\frac{1}{4 \mu})$$ 
+in distribution.
+
+## (iii)
+Similarly to (i), let $g(x) = logx$. Since $g$ is continuously differentiable for $x\neq 0$. Then,
+$$\sqrt{n}(\frac{1}{\bar{Y}}-\frac{1}{\mu}) \rightarrow N(0,\frac{1}{\mu^4})$$ in distribution.
